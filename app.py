@@ -21,6 +21,7 @@ def db():
         url = st.secrets["DATABASE_URL"]
     except Exception:
         url = "sqlite:///driller.db"
+    url = re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", url)   # always use psycopg 3
     eng = create_engine(url, pool_pre_ping=True)
     with eng.begin() as c:
         for q in ("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, pw TEXT NOT NULL, goal INTEGER DEFAULT 30, sprint_best INTEGER DEFAULT 0)",

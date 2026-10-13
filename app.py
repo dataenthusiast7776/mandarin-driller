@@ -300,6 +300,9 @@ def home_page():
     c1, c2 = st.columns([3, 1])
     c1.progress(min(1.0, today / goal), text=f"Today {today}/{goal}")
     c2.markdown(f"**🔥 {day_streak()}-day streak**")
+    q = st.text_input("🔎 Quick add: search by character, pinyin (xing1qi1) or English", key="quick").strip()
+    if q:
+        find_ui(q, "h")
     st.subheader(f"Your garden · {len(S.chars)} characters")
     if not S.chars:
         st.info("Your garden is empty. Open **Find & Plant** to search the dictionary and add what you've learned.")
@@ -374,21 +377,50 @@ def search(q, limit=30):
     return list(dict.fromkeys(hits))[:limit]
 
 
+def result_rows(hits, key):
+    D = dictionary()
+    for c in hits:
+        e = D[c]; a, b, m, f = st.columns([1, 2, 6, 2])
+        a.markdown(f"## {c}"); b.markdown(f"**{display_pinyin(e)}**"); m.write(e["meaning"])
+        if c in S.chars:
+            f.caption("✓ in garden")
+        else:
+            f.button("🌱 Plant", key=f"{key}_{c}", on_click=plant, args=(c,))
+
+
+def find_ui(q, key):
+    """Search box results. Typing a word's pinyin like xing1qi1 shows candidates for each syllable."""
+    flat = q.lower().replace(" ", "")
+    syl = re.findall(r"[a-zü]+[0-5]", flat)
+    if len(syl) > 1 and "".join(syl) == flat:
+        for i, s in enumerate(syl):
+            st.caption(f"Syllable {i + 1}: {s}")
+            result_rows(search(s, 6), f"{key}{i}")
+    else:
+        hits = search(q)
+        result_rows(hits, key)
+        if not hits:
+            st.caption("No matches. Try pinyin without the tone, an English word, or add it under Custom entry.")
+
+
 def find_page():
     st.title("🔎 Find & Plant")
     D = dictionary()
     if not D:
         st.warning("dictionary.json not found. Run build_dictionary.py and commit the file.")
-    t1, t2, t3, t4 = st.tabs(["Search dictionary", "Paste characters", "Custom entry", "Import / Export"])
+    t1, tb, t2, t3, t4 = st.tabs(["Search dictionary", "Browse common", "Paste characters", "Custom entry", "Import / Export"])
     with t1:
-        q = st.text_input("Search by character, pinyin (xue / xue2 / xué) or English").strip()
-        for c in (search(q) if q else []):
-            e = D[c]; a, b, m, f = st.columns([1, 2, 6, 2])
-            a.markdown(f"## {c}"); b.markdown(f"**{display_pinyin(e)}**"); m.write(e["meaning"])
-            if c in S.chars:
-                f.caption("✓ in garden")
-            else:
-                f.button("🌱 Plant", key=f"p_{c}", on_click=plant, args=(c,))
+        q = st.text_input("Search by character, pinyin (xue / xue2 / xué / xing1qi1) or English").strip()
+        if q:
+            find_ui(q, "s")
+    with tb:
+        todo = [c for c in D if c not in S.chars]
+        st.caption(f"{len(todo)} characters left to discover, most common first")
+        if todo:
+            pg = st.number_input("Page", 1, -(-len(todo) // 30), 1)
+            chunk = todo[(pg - 1) * 30: pg * 30]
+            st.button(f"🌱 Plant all {len(chunk)} on this page", on_click=lambda cs=chunk: [plant(c) for c in cs], type="primary")
+            result_rows(chunk, "b")
     with t2:
         txt = st.text_area("Paste anything you've learned (a word list, a sentence, whatever)")
         if st.button("Plant them all", type="primary"):

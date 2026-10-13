@@ -41,10 +41,16 @@ def rows(q, **p):
         return c.execute(text(q), p).fetchall()
 
 
+DICT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dictionary.json")
+
+
 @st.cache_resource
+def _read_dictionary(path):
+    return json.load(open(path, encoding="utf-8"))
+
+
 def dictionary():
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dictionary.json")
-    return json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
+    return _read_dictionary(DICT_PATH) if os.path.exists(DICT_PATH) else {}   # a missing file is never cached
 
 
 # ------------------------------------------------------------ accounts
@@ -407,7 +413,7 @@ def find_page():
     st.title("🔎 Find & Plant")
     D = dictionary()
     if not D:
-        st.warning("dictionary.json not found. Run build_dictionary.py and commit the file.")
+        st.warning(f"dictionary.json is missing or empty. Looked in {os.path.dirname(DICT_PATH)}, which contains: {sorted(os.listdir(os.path.dirname(DICT_PATH)))}")
     t1, tb, t2, t3, t4 = st.tabs(["Search dictionary", "Browse common", "Paste characters", "Custom entry", "Import / Export"])
     with t1:
         q = st.text_input("Search by character, pinyin (xue / xue2 / xué / xing1qi1) or English").strip()
